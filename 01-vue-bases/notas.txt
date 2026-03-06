@@ -1,0 +1,23 @@
+-REFERENCIA REACTIVA (REF): variable que cuando cambie mediante cierta forma nosotros seremos notificados.
+
+-EN VUE se recomienda que al nombrar los componentes tengas 2 PALABRAS (pascal case).
+
+-ESTADO: pieza de información que le va a servir a algunos componentes para poder renderizarse, validar rutas,
+verificar el acceso a algunos lugares.
+
+- V-FOR y V-IF nunca se usan juntos.
+  Vue procesa el v-for primero sobre la lista completa y luego aplica el v-if a cada elemento, lo cual es ineficiente.
+  La solución es filtrar la lista antes de dársela al v-for (ej. con una propiedad computada) o anidar el v-if en un elemento hijo.
+
+- Puedes acceder a los PROPS de 2 formas
+  const props = defineProps<Type>()
+  1. props.property
+  2. Con la global $props.property
+
+- Puedes acceder a los Emits de 2 formas
+  const emit = defineEmits<{(event: 'increment'): void}>() | defineEmits(['increment'])
+  1. emit('increment')
+  2. Con la global $emit('increment')
+
+- COMPOSABLE FUNCTION: Se usan para encapsular y reutilizar lógica de estado (reactividad) y evitar que
+  los componentes crezcan demasiado ("fat components").
