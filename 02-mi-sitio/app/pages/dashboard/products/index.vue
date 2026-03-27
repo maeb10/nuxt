@@ -18,7 +18,45 @@
       />
     </div>
 
-    <UTable :data="data" :columns="columns" class="flex-1" />
+    <UTable :data="products" :columns="columns" class="flex-1" />
+
+    <!-- Card de detalle -->
+    <div v-if="selectedProduct" class="border rounded-xl p-6 bg-white dark:bg-gray-900 shadow space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Detalle del Producto</h2>
+        <UButton icon="i-lucide-x" variant="ghost" color="neutral" @click="selectedProduct = null" />
+      </div>
+
+      <div class="flex gap-6">
+        <img
+          v-if="selectedProduct.images?.[0]"
+          :src="selectedProduct.images[0]"
+          alt="Imagen del producto"
+          class="w-24 h-24 object-cover rounded-lg"
+        />
+        <div class="space-y-2 flex-1">
+          <div><span class="font-medium text-gray-500">ID:</span> #{{ selectedProduct.id }}</div>
+          <div><span class="font-medium text-gray-500">Nombre:</span> {{ selectedProduct.name }}</div>
+          <div><span class="font-medium text-gray-500">Descripción:</span> {{ selectedProduct.description }}</div>
+          <div><span class="font-medium text-gray-500">Precio:</span> {{ formatCurrency(selectedProduct.price) }}</div>
+          <div><span class="font-medium text-gray-500">Creado:</span> {{ dayMonthYearFormat(new Date(selectedProduct.createdAt)) }}</div>
+          <div class="flex gap-1 flex-wrap">
+            <span class="font-medium text-gray-500 mr-1">Tags:</span>
+            <UBadge
+              v-for="tag in selectedProduct.tags"
+              :key="tag"
+              size="md"
+              color="primary"
+              variant="subtle"
+            >
+              {{ tag }}
+            </UBadge>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <SharedPagination :total="total" :current-page="currentPage" :per-page="perPage"/>
   </div>
 </template>
 
@@ -26,97 +64,105 @@
 import { h, resolveComponent } from 'vue';
 import type { TableColumn } from '@nuxt/ui';
 const UBadge = resolveComponent('UBadge');
-type Payment = {
-  id: string;
-  date: string;
-  status: 'paid' | 'failed' | 'refunded';
-  email: string;
-  amount: number;
-};
-const data = ref<Payment[]>([
+const UCheckbox = resolveComponent('UCheckbox');
+
+
+const { products, total, currentPage, perPage, status } = await usePaginatedProducts()
+
+const selectedProduct = ref<Product | null>(null)
+
+function toggleSelect(product: Product) {
+  // Si ya está seleccionado, lo deselecciona; si no, reemplaza la selección anterior
+  selectedProduct.value = selectedProduct.value?.id === product.id ? null : product
+}
+
+const columns: TableColumn<Product>[] = [
   {
-    id: '4600',
-    date: '2024-03-11T15:30:00',
-    status: 'paid',
-    email: 'james.anderson@example.com',
-    amount: 594,
+    id: 'select',
+    header: '',
+    cell: ({ row }) => {
+      const product = row.original
+      return h(UCheckbox, {
+        modelValue: selectedProduct.value?.id === product.id,
+        'onUpdate:modelValue': () => toggleSelect(product),
+      })
+    },
   },
-  {
-    id: '4599',
-    date: '2024-03-11T10:10:00',
-    status: 'failed',
-    email: 'mia.white@example.com',
-    amount: 276,
-  },
-  {
-    id: '4598',
-    date: '2024-03-11T08:50:00',
-    status: 'refunded',
-    email: 'william.brown@example.com',
-    amount: 315,
-  },
-  {
-    id: '4597',
-    date: '2024-03-10T19:45:00',
-    status: 'paid',
-    email: 'emma.davis@example.com',
-    amount: 529,
-  },
-  {
-    id: '4596',
-    date: '2024-03-10T15:55:00',
-    status: 'paid',
-    email: 'ethan.harris@example.com',
-    amount: 639,
-  },
-]);
-const columns: TableColumn<Payment>[] = [
   {
     accessorKey: 'id',
     header: '#',
     cell: ({ row }) => `#${row.getValue('id')}`,
   },
   {
-    accessorKey: 'date',
-    header: 'Date',
+    accessorKey: 'images',
+    header: 'Imagen',
     cell: ({ row }) => {
-      return new Date(row.getValue('date')).toLocaleString('en-US', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
-    },
+      const images = row.getValue('images') as string[]
+      const url = Array.isArray(images) && images.length > 0 ? images[0] : ''
+
+      if (!url) {
+        return h('span', { class: 'text-gray-500' }, 'Sin imagen')
+      }
+
+      return h('img', {
+        src: url,
+        alt: 'Imagen del producto',
+        style: 'width: 48px; height: 48px; object-fit: cover; border-radius: 0.5rem'
+      })
+    }
   },
   {
-    accessorKey: 'status',
-    header: 'Status',
+    accessorKey: 'name',
+    header: 'Nombre',
+  },
+  {
+    accessorKey: 'description',
+    header: 'Descripción',
     cell: ({ row }) => {
-      const color = {
-        paid: 'success' as const,
-        failed: 'error' as const,
-        refunded: 'neutral' as const,
-      }[row.getValue('status') as string];
-      return h(UBadge, { class: 'capitalize', variant: 'subtle', color }, () =>
-        row.getValue('status')
+      return h(
+        'div',
+        {
+          style:
+            'white-space: normal; word-break: break-word; max-width: 300px;',
+          class: 'truncate-text',
+        },
+        String(row.getValue('description')).slice(0, 50) + '...'
       );
     },
   },
   {
-    accessorKey: 'email',
-    header: 'Email',
+    accessorKey: 'price',
+    header: 'Precio',
+    cell: ({ row }) => formatCurrency(row.getValue('price')),
   },
   {
-    accessorKey: 'amount',
-    header: () => h('div', { class: 'text-right' }, 'Amount'),
+    accessorKey: 'tags',
+    header: 'Tags',
     cell: ({ row }) => {
-      const amount = Number.parseFloat(row.getValue('amount'));
-      const formatted = new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-      }).format(amount);
-      return h('div', { class: 'text-right font-medium' }, formatted);
+      const tags = row.getValue('tags') as string[]
+      if (!Array.isArray(tags)) return ''
+      return h('div', { class: 'flex gap-1 flex-wrap' },
+        tags.map(tag =>
+          h(
+            UBadge,
+            {
+              size: 'md',
+              color: 'primary',
+              variant: 'subtle',
+              class: 'mr-0.5',
+            },
+            () => tag
+          )
+        )
+      )
+    }
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Creado',
+    cell: ({ row }) => {
+      const value = row.getValue('createdAt');
+      return value ? dayMonthYearFormat(new Date(value as string)) : ''
     },
   },
 ];
